@@ -22,15 +22,23 @@ public final class Dates {
             DateTimeFormatter.ofPattern("dd-MM-yy HH:mm", Locale.ENGLISH),
             DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.ENGLISH),
             DateTimeFormatter.ofPattern("dd MMM yy HH:mm", Locale.ENGLISH),
-            DateTimeFormatter.ofPattern("dd-MMM-yyyy HH:mm", Locale.ENGLISH));
+            DateTimeFormatter.ofPattern("dd-MMM-yyyy HH:mm", Locale.ENGLISH),
+            DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH),
+            DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss", Locale.ENGLISH),
+            DateTimeFormatter.RFC_1123_DATE_TIME);
 
     /** Parse a local date-time written by a bank, as IST. */
     public static OffsetDateTime ist(String dateAndTime) {
+        if (dateAndTime == null || dateAndTime.isBlank()) return null;
+        String trimmed = dateAndTime.trim();
         for (DateTimeFormatter f : SMS_FORMATS) {
             try {
-                return LocalDateTime.parse(dateAndTime.trim(), f).atOffset(IST);
+                return OffsetDateTime.parse(trimmed, f).withOffsetSameInstant(IST);
             } catch (DateTimeParseException ignored) {
-                // try the next shape
+            }
+            try {
+                return LocalDateTime.parse(trimmed, f).atOffset(IST);
+            } catch (DateTimeParseException ignored) {
             }
         }
         return null;

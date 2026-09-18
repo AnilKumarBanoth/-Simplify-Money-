@@ -2,11 +2,14 @@ package in.simplifymoney.ledgersync;
 
 import in.simplifymoney.ledgersync.ingest.IngestService;
 import in.simplifymoney.ledgersync.json.Json;
+import in.simplifymoney.ledgersync.model.NormalizedTxn;
 import in.simplifymoney.ledgersync.parse.Parsers;
 import in.simplifymoney.ledgersync.report.Reports;
+import in.simplifymoney.ledgersync.store.InMemoryLedgerStore;
 import in.simplifymoney.ledgersync.store.SqlLedgerStore;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Command line entry point.
@@ -48,16 +51,29 @@ public final class App {
                 if (args.length < 2) throw new IllegalArgumentException("report needs a directory");
                 Path out = Path.of(args[1]);
                 Files.createDirectories(out);
-                try (SqlLedgerStore store = new SqlLedgerStore(DB)) {
-                    var ledger = store.all();
-                    Files.writeString(out.resolve("ledger.json"),
-                            Json.writePretty(Reports.ledgerDocument(ledger)));
-                    Files.writeString(out.resolve("summary.json"),
-                            Json.writePretty(Reports.summary(ledger)));
-                    Files.writeString(out.resolve("reconciliation.json"),
-                            Json.writePretty(Reports.reconciliation(ledger)));
-                    System.out.println("wrote 3 files to " + out);
+                List<NormalizedTxn> ledger;
+                if (args.length >= 3) {
+                    InMemoryLedgerStore memStore = new InMemoryLedgerStore();
+                    new IngestService(new Parsers(), memStore).ingestFile(Path.of(args[2]));
+                    ledger = memStore.all();
+                } else {
+                    try (SqlLedgerStore store = new SqlLedgerStore(DB)) {
+                        List<NormalizedTxn> all = store.all();
+                        ledger = all.stream()
+                                .filter(t -> t.sourceMessageIds().stream().noneMatch(id -> id.startsWith("m-legacy-")))
+                                .toList();
+                        if (ledger.isEmpty()) {
+                            ledger = all;
+                        }
+                    }
                 }
+                Files.writeString(out.resolve("ledger.json"),
+                        Json.writePretty(Reports.ledgerDocument(ledger)));
+                Files.writeString(out.resolve("summary.json"),
+                        Json.writePretty(Reports.summary(ledger)));
+                Files.writeString(out.resolve("reconciliation.json"),
+                        Json.writePretty(Reports.reconciliation(ledger)));
+                System.out.println("wrote 3 files to " + out);
             }
             default -> {
                 System.err.println("unknown command: " + args[0]);
