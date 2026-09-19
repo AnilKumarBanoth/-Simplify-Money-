@@ -4,7 +4,7 @@ out/
 *.class
 data/
 tools/
-submission/
+!tools/generate_pdf_flowchart.py
 .idea/
 *.iml
 .DS_Store
