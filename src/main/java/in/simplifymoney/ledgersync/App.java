@@ -75,6 +75,12 @@ public final class App {
                         Json.writePretty(Reports.reconciliation(ledger)));
                 System.out.println("wrote 3 files to " + out);
             }
+            case "server" -> {
+                int port = args.length >= 2 ? Integer.parseInt(args[1]) : 8080;
+                Path corpus = args.length >= 3 ? Path.of(args[2]) : Path.of("fixtures", "corpus-a.jsonl");
+                new in.simplifymoney.ledgersync.server.LedgerServer(port, corpus).start();
+                Thread.currentThread().join();
+            }
             default -> {
                 System.err.println("unknown command: " + args[0]);
                 System.exit(2);
